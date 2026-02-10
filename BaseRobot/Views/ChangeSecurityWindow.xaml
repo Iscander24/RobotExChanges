@@ -1,0 +1,54 @@
+﻿<mah:MetroWindow x:Class="BaseRobot.Views.ChangeSecurityWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:BaseRobot.Views"
+        xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
+        xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+        mc:Ignorable="d"
+        Title="ChangeSecurityWindow" Height="450" Width="800">
+    <Grid>
+        <mah:MetroAnimatedTabControl
+            ItemsSource="{Binding Servers}"
+            SelectedItem="{Binding Server}">
+
+            <mah:MetroAnimatedTabControl.ContentTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="300"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <GroupBox Header="Code classes"
+                                  Margin="2">
+                            <ListView ItemsSource="{Binding DataContext.CodeClasses,RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                                      SelectedItem="{Binding DataContext.SelectedCodeClass,RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding }"/>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </GroupBox>
+                        <GroupBox Header="Securities"
+                                  Margin="2"
+                                  Grid.Column="1">
+                            <DataGrid ItemsSource="{Binding DataContext.Securities,RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                                      SelectedItem="{Binding DataContext.SelectedSecurityVM,RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}">
+                                <i:Interaction.Triggers>
+                                    <i:EventTrigger EventName="MouseDoubleClick">
+                                        <i:InvokeCommandAction
+                                            Command="{Binding DataContext.CommandSelectedSecurity,RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"/>
+                                    </i:EventTrigger>
+                                </i:Interaction.Triggers>
+                            </DataGrid>
+                        </GroupBox>
+                    </Grid>
+                </DataTemplate>
+            </mah:MetroAnimatedTabControl.ContentTemplate>
+            
+        </mah:MetroAnimatedTabControl>
+    </Grid>
+</mah:MetroWindow>
