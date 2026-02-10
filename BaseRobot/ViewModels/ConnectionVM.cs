@@ -90,21 +90,25 @@ namespace BaseRobot.ViewModels
                 _onConnector = value;
                 OnPropertyChanged(nameof(OnConnector));
 
-                if (OnConnector && SelectedExchangeType != ExchangeType.None && _connector != null)
+                if (SelectedExchangeType != ExchangeType.None && _connector != null)
                 {
-                    _connector.ConnectParaments.SetParaments(nameConnector:"", 
-                        listParaments: ParameterRows.ToList(), 
-                        autoConnect:false,
-                        exchangeType: SelectedExchangeType);
-
-                    if (_connector.ConnectStatus != ConnectStatus.Connect)
+                    if (OnConnector)
                     {
-                        Task.Run(() =>
+                        _connector.ConnectParaments.SetParaments(nameConnector: "",
+                            listParaments: ParameterRows.ToList(),
+                            autoConnect: false,
+                            exchangeType: SelectedExchangeType);
+
+                        if (_connector.ConnectStatus != ConnectStatus.Connect)
                         {
-                            _connector.Connect();
-                        });
+                            Task.Run(() =>
+                            {
+                                _connector.Connect();
+                            });
+                        }
                     }
-                }
+                    else _connector.Disconnect();
+                }                                 
             }
         }
         private bool _onConnector;

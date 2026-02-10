@@ -55,7 +55,7 @@ namespace BaseRobot.ViewModels
 
         private TelegramBotClient _telegramBot;
 
-        private string _token = "";
+        private string _token = "0531579091:AAH8ARd67VDYe0b-BoRHNycNq2eruuYhEKY";
 
         private Controller _controller;
 

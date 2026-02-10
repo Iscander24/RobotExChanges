@@ -10,12 +10,20 @@
         Title="ChangeSecurityWindow" Height="450" Width="800">
     <Grid>
         <mah:MetroAnimatedTabControl
-            ItemsSource="{Binding Servers}"
-            SelectedItem="{Binding Server}">
+            ItemsSource="{Binding Connectors}"
+            SelectedItem="{Binding Connector}">
 
             <mah:MetroAnimatedTabControl.ContentTemplate>
                 <DataTemplate>
                     <Grid>
+                        <Grid.Resources>
+                            <ResourceDictionary>
+                                <ResourceDictionary.MergedDictionaries>
+                                    <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml"/>
+                                    <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml"/>
+                                </ResourceDictionary.MergedDictionaries>
+                            </ResourceDictionary>
+                        </Grid.Resources>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="300"/>
                             <ColumnDefinition Width="*"/>

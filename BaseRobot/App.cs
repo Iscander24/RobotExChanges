@@ -20,12 +20,12 @@ namespace BaseRobot
 
         private void CurrentDomain_FirstChanceException(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
 
         private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
 
         private MyBot _mainWindow;
