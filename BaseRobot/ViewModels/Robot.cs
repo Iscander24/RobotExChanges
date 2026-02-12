@@ -557,7 +557,7 @@ namespace BaseRobot.ViewModels
             //}
             #endregion
 
-            if (_security == null && trade.IsinId == _security.IsinId)
+            if (_security != null && trade.IsinId == _security.IsinId)
             {
                 Price = trade.Price;
 
@@ -625,10 +625,15 @@ namespace BaseRobot.ViewModels
         }
         private void NewServer_NewMarketDepthEvent(MarketDepth marketDepth)
         {
-            Security security = _connector.SecuritiesService.GetSecurityForIsinId(marketDepth.IsinId);
+            //Security security = _connector.SecuritiesService.GetSecurityForIsinId(marketDepth.IsinId);
 
 
-            Debug.WriteLine($"INSIDE TRADES | {security.FullName} | {security.Name}");
+            //Debug.WriteLine($"INSIDE TRADES | {security.FullName} | {security.Name}");
+
+            if (_security != null && marketDepth.IsinId == _security.IsinId)
+            {
+
+            }
         }
         private void NewServer_NeedToReconnectEvent()
         {

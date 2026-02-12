@@ -165,7 +165,7 @@ namespace ControllerExChanges.Connectors
         {
             if (_quik == null)
             {
-                _logger.Error("Method{@Method}, _quik == null", nameof(SubscribeToSecurity));
+                _logger.Error("Method{@Method}, _quik == null", nameof(SubscribeToSecurityMarketDepth));
 
                 OnNewMessage(new Message(title: "Subscribing error",
                                          text: "_quik == null",
@@ -233,7 +233,7 @@ namespace ControllerExChanges.Connectors
 
         private void Events_OnTrade(QuikSharp.DataStructures.Transaction.Trade trade)
         {
-            
+            _logger.Information("Method{@Method}, MyTrade{@MyTrade}", nameof(Events_OnTrade), trade);
         }
 
         private void Events_OnOrder(QuikSharp.DataStructures.Transaction.Order order)
@@ -288,7 +288,7 @@ namespace ControllerExChanges.Connectors
                         Volume = (decimal)bid.quantity
                     };
 
-                    bids.Add(marketDepthLevel);
+                    bids.Insert(0, marketDepthLevel);
                 }
             }
 
