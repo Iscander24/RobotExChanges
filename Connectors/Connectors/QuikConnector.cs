@@ -5,6 +5,7 @@ using QuikSharp;
 using QuikSharp.DataStructures;
 using System;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using Candle = ControllerExChanges.Entity.Candle;
 
@@ -119,14 +120,66 @@ namespace ControllerExChanges.Connectors
             throw new NotImplementedException();
         }
 
-        protected override Task<bool> SubscribeToSecurity(Security security)
+        protected async override Task<bool> SubscribeToSecurity(Security security)
         {
-            throw new NotImplementedException();
+            if (_quik == null)
+            {
+                _logger.Error("Method{@Method}, _quik == null", nameof(SubscribeToSecurity));
+
+                OnNewMessage(new Message(title: "Subscribing error",
+                                         text: "_quik == null",
+                                         exchangeType: ExchangeType.QuikConnector,
+                                         securityName: security.Name));
+                
+                return false;
+            }
+
+            List<QuikSharp.DataStructures.Transaction.Trade> trades = await _quik.Trading.GetTrades(security.ClassCode, security.Name);
+
+            if (trades != null && trades.Count > 0)
+            {
+                _logger.Information("Method{@Method}, trades.Count{@Count}", nameof(SubscribeToSecurity), trades.Count);
+
+                foreach (var trade in trades)
+                {
+                    Events_OnTrade(trade);
+                }
+            }
+
+            List<QuikSharp.DataStructures.Transaction.Order> orders = await _quik.Orders.GetOrders(security.ClassCode, security.Name);
+
+            if (orders != null && orders.Count > 0)
+            {
+                _logger.Information("Method{@Method}, orders.Count{@Count}", nameof(SubscribeToSecurity), orders.Count);
+
+                foreach (var order in orders)
+                {
+                    Events_OnOrder(order);
+                }
+            }
+
+            return true;
         }
 
-        protected override Task<bool> SubscribeToSecurityMarketDepth(Security security)
+        protected async override Task<bool> SubscribeToSecurityMarketDepth(Security security)
         {
-            throw new NotImplementedException();
+            if (_quik == null)
+            {
+                _logger.Error("Method{@Method}, _quik == null", nameof(SubscribeToSecurity));
+
+                OnNewMessage(new Message(title: "Subscribing error",
+                                         text: "_quik == null",
+                                         exchangeType: ExchangeType.QuikConnector,
+                                         securityName: security.Name));
+
+                return false;
+            }
+
+            bool res = await _quik.OrderBook.Subscribe(security.ClassCode, security.Name);
+
+            _logger.Information("Method{@Method}, res{@Res}", nameof(SubscribeToSecurityMarketDepth), res);
+
+            return res;
         }
 
         protected override Task<bool> UnsubscribeToSecurity(Security security)
@@ -190,12 +243,79 @@ namespace ControllerExChanges.Connectors
 
         private void Events_OnQuote(QuikSharp.DataStructures.OrderBook orderbook)
         {
-            
+            Security? security = _securitiesService.GetSecurityFromSecNameAndClass(orderbook.sec_code, orderbook.class_code);  // порядок аргументов
+
+            if (security == null) return;
+
+            MarketDepth marketDepth;
+
+            if (_marketDepthsToSend.TryGetValue(security.IsinId, out NewMarketDepth? newMarketDepth))
+            {
+                marketDepth = newMarketDepth.MarketDepth;
+            }
+            else
+            {
+                marketDepth = new MarketDepth();
+
+                marketDepth.IsinId = security.IsinId;
+
+            }
+
+            List<MarketDepthLevel> asks = new();
+            List<MarketDepthLevel> bids = new();
+
+            if (orderbook.offer != null)
+            {
+                foreach (var ask in orderbook.offer)
+                {
+                    MarketDepthLevel marketDepthLevel = new MarketDepthLevel()
+                    {
+                        Price = (decimal)ask.price,
+                        Volume = (decimal)ask.quantity
+                    };
+
+                    asks.Add(marketDepthLevel);
+                }
+            }
+
+            if (orderbook.bid != null)
+            {
+                foreach (var bid in orderbook.bid)
+                {
+                    MarketDepthLevel marketDepthLevel = new MarketDepthLevel()
+                    {
+                        Price = (decimal)bid.price,
+                        Volume = (decimal)bid.quantity
+                    };
+
+                    bids.Add(marketDepthLevel);
+                }
+            }
+
+            marketDepth.Asks = asks;
+            marketDepth.Bids = bids;
+
+            SetNewMarketDepth(marketDepth);
         }
 
         private void Events_OnAllTrade(QuikSharp.DataStructures.AllTrade allTrade)
         {
-            
+            Security? security = _securitiesService.GetSecurityFromSecNameAndClass(allTrade.SecCode, allTrade.ClassCode);  // порядок аргументов
+
+            if (security == null) return;
+
+            Trade trade = new();
+
+            trade.Number = allTrade.TradeNum;
+            trade.SecurityName = allTrade.ClassCode;        // 
+            trade.SecurityClassCode = allTrade.SecCode;     //
+            trade.Price = (decimal)allTrade.Price;
+            trade.Operation = (int)allTrade.Flags == 1026 ? Enums.Operation.Buy : Enums.Operation.Sell;
+            trade.Volume = allTrade.Qty;
+            trade.DateTime = (DateTime)allTrade.Datetime;
+            trade.IsinId = security.IsinId;
+
+            _tradesService.SetTrade(trade);
         }
 
         private async void Events_OnDisconnectedFromQuik()
@@ -261,7 +381,7 @@ namespace ControllerExChanges.Connectors
                         {
                             Security security = new Security();
 
-                            security.Name = securityInfo.Name;
+                            security.Name = securityInfo.SecCode;
                             security.ClassCode = securityInfo.ClassCode;
                             security.ExchangeType = ExchangeType.QuikConnector;
                             security.Lot = securityInfo.LotSize;

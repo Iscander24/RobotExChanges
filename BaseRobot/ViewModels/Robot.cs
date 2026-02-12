@@ -6,6 +6,7 @@ using ControllerExChanges.Controller;
 using ControllerExChanges.Entity;
 using ControllerExChanges.Enums;
 using ControllerExChanges.Interfaces;
+using ControllerExChanges.Services;
 using ControlzEx.Theming;
 using Serilog;
 using System;
@@ -49,8 +50,6 @@ namespace BaseRobot.ViewModels
         private Messenger _messenger;
 
         private List<MyCandle> _candles = new List<MyCandle>();
-
-        private int _lastTradeIndex = 0;
 
         private TimeFrame _timeFrame = TimeFrame.Min1;
 
@@ -424,11 +423,11 @@ namespace BaseRobot.ViewModels
                 //_connector.PortfoliosChangeEvent -= NewServer_PortfoliosChangeEvent;
                 //_connector.SecuritiesChangeEvent -= NewServer_SecuritiesChangeEvent;
                 //_connector.NeedToReconnectEvent -= NewServer_NeedToReconnectEvent;
-                //_connector.NewMarketDepthEvent -= NewServer_NewMarketDepthEvent;
-                //_connector.NewTradeEvent -= NewServer_NewTradeEvent;
+                _connector.NewMarketDepthEvent -= NewServer_NewMarketDepthEvent;
+                _connector.NewTradeEvent -= NewServer_NewTradeEvent;
                 //_connector.NewOrderIncomeEvent -= NewServer_NewOrderIncomeEvent;
-                //_connector.NewMyTradeEvent -= NewServer_NewMyTradeEvent;
-                //_connector.ConnectStatusChangeEvent -= NewServer_ConnectStatusChangeEvent;
+                _connector.NewMyTradeEvent -= NewServer_NewMyTradeEvent;
+                _connector.ConnectStatusChangeEvent -= NewServer_ConnectStatusChangeEvent;
             }
 
             _connector = newServer;
@@ -436,14 +435,14 @@ namespace BaseRobot.ViewModels
             //_connector.PortfoliosChangeEvent += NewServer_PortfoliosChangeEvent;
             //_connector.SecuritiesChangeEvent += NewServer_SecuritiesChangeEvent;
             //_connector.NeedToReconnectEvent += NewServer_NeedToReconnectEvent;
-            //_connector.NewMarketDepthEvent += NewServer_NewMarketDepthEvent;
-            //_connector.NewTradeEvent += NewServer_NewTradeEvent;
+            _connector.NewMarketDepthEvent += NewServer_NewMarketDepthEvent;
+            _connector.NewTradeEvent += NewServer_NewTradeEvent;
             //_connector.NewOrderIncomeEvent += NewServer_NewOrderIncomeEvent;
-            //_connector.NewMyTradeEvent += NewServer_NewMyTradeEvent;
-            //_connector.ConnectStatusChangeEvent += NewServer_ConnectStatusChangeEvent;
+            _connector.NewMyTradeEvent += NewServer_NewMyTradeEvent;
+            _connector.ConnectStatusChangeEvent += NewServer_ConnectStatusChangeEvent;
         }
 
-        private void NewServer_ConnectStatusChangeEvent(string state)
+        private void NewServer_ConnectStatusChangeEvent(ConnectStatus connectStatus)
         {
 
         }
@@ -511,7 +510,7 @@ namespace BaseRobot.ViewModels
             #endregion
         }
 
-        private void NewServer_NewTradeEvent(List<Trade> trades)
+        private void NewServer_NewTradeEvent(Trade trade)
         {
             #region метод из урока
             //Trade trade = trades.Last();
@@ -558,17 +557,11 @@ namespace BaseRobot.ViewModels
             //}
             #endregion
 
-            if (trades == null || trades.Count == 0 || _security == null) return;
-
-            for (int i = _lastTradeIndex; i < trades.Count; i++)
+            if (_security == null && trade.IsinId == _security.IsinId)
             {
-                Trade trade = trades[i];
-
-                Debug.WriteLine($"INSIDE TRADES | {trades[i].SecurityName} | {trades[i].DateTime:HH:mm:ss.fff} | Price: {trades[i].Price} | Volume: {trades[i].Volume} | Side: {trades[i].Operation}");
-
-                if (trade.IsinId != _security.IsinId) continue;
-
                 Price = trade.Price;
+
+                Debug.WriteLine($"INSIDE TRADES | {trade.SecurityName} | {trade.DateTime:HH:mm:ss.fff} | Price: {trade.Price} | Volume: {trade.Volume} | Side: {trade.Operation}");
 
                 if (_candles.Count == 0)
                 {
@@ -588,8 +581,7 @@ namespace BaseRobot.ViewModels
                         _candles.Add(new MyCandle(trade, _timeFrame));
                     }
                 }
-            }
-            _lastTradeIndex = trades.Count;
+            }            
         }
         private void NewServer_NewOrderIncomeEvent(Order order)
         {
@@ -633,7 +625,10 @@ namespace BaseRobot.ViewModels
         }
         private void NewServer_NewMarketDepthEvent(MarketDepth marketDepth)
         {
+            Security security = _connector.SecuritiesService.GetSecurityForIsinId(marketDepth.IsinId);
 
+
+            Debug.WriteLine($"INSIDE TRADES | {security.FullName} | {security.Name}");
         }
         private void NewServer_NeedToReconnectEvent()
         {
