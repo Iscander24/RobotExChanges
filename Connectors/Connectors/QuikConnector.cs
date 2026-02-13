@@ -34,9 +34,6 @@ namespace ControllerExChanges.Connectors
 
         Quik? _quik;
 
-
-
-
         #endregion
 
         #region Methods ===============================================================
@@ -53,13 +50,18 @@ namespace ControllerExChanges.Connectors
 
                     SubscribeToQuikEvents(_quik);
 
-                    await GetConnectStatusAsync();
-
                 }
                 catch (Exception ex)
                 {
                     _logger.Error("Method{@Method}, Exception{@Exception}", nameof(Connect), ex);
                 }
+            }
+
+            await GetConnectStatusAsync();
+
+            if (_quik != null && _connectStatus == ConnectStatus.Connect)
+            {
+                await SetPortfolios(_quik);
             }
 
             return _connectStatus;
@@ -189,6 +191,12 @@ namespace ControllerExChanges.Connectors
 
         #region ================================================== private Methods =====================================================
 
+        private async Task SetPortfolios(Quik quik)
+        {
+            List<TradesAccounts> tradesAccounts = await quik.Class.GetTradeAccounts();
+        }
+
+
         private void SubscribeToQuikEvents (Quik quik)
         {
             quik.Events.OnAccountBalance += Events_OnAccountBalance;
@@ -223,7 +231,28 @@ namespace ControllerExChanges.Connectors
 
         private void Events_OnTransReply(QuikSharp.DataStructures.Transaction.TransactionReply transReply)
         {
-            
+            _logger.Information("Method{@Method}, TransactionReply{@TransactionReply}", nameof(Events_OnTransReply), transReply);
+
+            Security? security = _securitiesService.GetSecurityFromSecNameAndClass(transReply.SecCode, transReply.ClassCode);
+
+            if (security == null) return;
+
+            if (transReply.Status == 2 || transReply.Status >= 4)
+            {
+                Order order = new();
+
+                order.ClassCode = transReply.ClassCode;
+                order.SecurityName = transReply.SecCode;
+                order.IsinId = security.IsinId;           
+                order.ExchangeType = ExchangeType.QuikConnector;
+                order.Comment = transReply.Comment;
+                order.Account = transReply.Account;
+                order.Status = OrderStatus.Canceled;
+                order.TimeCanceled = DateTime.Now; 
+
+                _ordersService.SetOrderFromExchange(order);
+            }
+
         }
 
         private void Events_OnParam(QuikSharp.DataStructures.Param par)
@@ -234,11 +263,69 @@ namespace ControllerExChanges.Connectors
         private void Events_OnTrade(QuikSharp.DataStructures.Transaction.Trade trade)
         {
             _logger.Information("Method{@Method}, MyTrade{@MyTrade}", nameof(Events_OnTrade), trade);
+
+            Security? security = _securitiesService.GetSecurityFromSecNameAndClass(trade.SecCode, trade.ClassCode); 
+
+            if (security == null) return;
+
+            MyTrade myTrade = new MyTrade();
+
+            myTrade.SecurityClassCode = trade.ClassCode;
+            myTrade.SecurityName = trade.SecCode;
+            myTrade.IsinId = security.IsinId;
+            myTrade.Price = (decimal)trade.Price;
+            myTrade.Volume = trade.Quantity;
+            myTrade.Number = trade.TradeNum;
+            myTrade.ParentOrderNumber = trade.OrderNum;
+            myTrade.Account = trade.Account;
+            myTrade.Operation = trade.Flags.ToString().Contains("IsSell") ? Enums.Operation.Sell : Enums.Operation.Buy;
+            myTrade.DateTime = (DateTime)trade.QuikDateTime;
+            myTrade.ComissionExchange = (decimal)trade.ExchangeComission;
+
+            _ordersService.SetMyTrade(myTrade);
         }
 
-        private void Events_OnOrder(QuikSharp.DataStructures.Transaction.Order order)
+        private void Events_OnOrder(QuikSharp.DataStructures.Transaction.Order newOrder)
         {
-            
+            _logger.Information("Method{@Method}, Order{@Order}", nameof(Events_OnOrder), newOrder);
+
+            Security? security = _securitiesService.GetSecurityFromSecNameAndClass(newOrder.SecCode, newOrder.ClassCode);
+
+            if (security == null) return;
+
+            Order order = new Order();
+
+            order.ClassCode = newOrder.ClassCode;
+            order.SecurityName = newOrder.SecCode;
+            order.IsinId = security.IsinId;
+            order.NumberMarket = newOrder.OrderNum;
+            order.ExchangeType = ExchangeType.QuikConnector;
+            order.Price = newOrder.Price;
+            order.Volume = newOrder.Quantity;
+            order.VolumeFilled = newOrder.Quantity - newOrder.Balance;
+            order.Comment = newOrder.Comment;
+            order.Account = newOrder.Account;
+            order.Status = SetOrderStatus(newOrder.State);
+            order.Operation = newOrder.Operation == QuikSharp.DataStructures.Operation.Sell ? Enums.Operation.Sell : Enums.Operation.Buy;
+            order.TimeCanceled = order.Status == OrderStatus.Canceled ? (DateTime)newOrder.Datetime : DateTime.MinValue;
+            order.TimeFilled = order.Status == OrderStatus.Filled ? (DateTime)newOrder.Datetime : DateTime.MinValue;
+            order.TimeCallBack = order.Status == OrderStatus.Active ? (DateTime)newOrder.Datetime : DateTime.MinValue;
+
+            _ordersService.SetOrderFromExchange(order);
+
+        }
+
+        private OrderStatus SetOrderStatus(QuikSharp.DataStructures.State state)            // убрал this из параметра
+        {
+            switch (state)
+            {
+                case QuikSharp.DataStructures.State.Active: return OrderStatus.Active;
+
+                case QuikSharp.DataStructures.State.Canceled: return OrderStatus.Canceled;
+
+                case QuikSharp.DataStructures.State.Completed: return OrderStatus.Filled;
+            }
+            return OrderStatus.None;
         }
 
         private void Events_OnQuote(QuikSharp.DataStructures.OrderBook orderbook)
@@ -338,7 +425,7 @@ namespace ControllerExChanges.Connectors
             await GetConnectStatusAsync();
         }
 
-        private async Task GetConnectStatusAsync()
+        private async Task GetConnectStatusAsync()  // GetConnectStatus()
         {
             if (_quik != null)
             {
