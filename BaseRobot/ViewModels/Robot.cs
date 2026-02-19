@@ -420,7 +420,7 @@ namespace BaseRobot.ViewModels
 
             if (_connector != null)
             {
-                //_connector.PortfoliosChangeEvent -= NewServer_PortfoliosChangeEvent;
+                _connector.PortfoliosChangeEvent -= NewServer_PortfoliosChangeEvent;
                 //_connector.SecuritiesChangeEvent -= NewServer_SecuritiesChangeEvent;
                 //_connector.NeedToReconnectEvent -= NewServer_NeedToReconnectEvent;
                 _connector.NewMarketDepthEvent -= NewServer_NewMarketDepthEvent;
@@ -432,7 +432,7 @@ namespace BaseRobot.ViewModels
 
             _connector = newServer;
 
-            //_connector.PortfoliosChangeEvent += NewServer_PortfoliosChangeEvent;
+            _connector.PortfoliosChangeEvent += NewServer_PortfoliosChangeEvent;
             //_connector.SecuritiesChangeEvent += NewServer_SecuritiesChangeEvent;
             //_connector.NeedToReconnectEvent += NewServer_NeedToReconnectEvent;
             _connector.NewMarketDepthEvent += NewServer_NewMarketDepthEvent;
@@ -447,11 +447,11 @@ namespace BaseRobot.ViewModels
 
         }
 
-        private void NewServer_PortfoliosChangeEvent(List<Portfolio> newPortfolios)
+        private void NewServer_PortfoliosChangeEvent(Dictionary<string, Portfolio> newPortfolios)
         {
             ObservableCollection<Portfolio> portfolios = new ObservableCollection<Portfolio>();
 
-            foreach (Portfolio portfolio in newPortfolios)
+            foreach (Portfolio portfolio in newPortfolios.Values)
             {
                 portfolios.Add(portfolio);
 

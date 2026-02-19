@@ -82,7 +82,7 @@
                                                    Margin="20, 0"/>
                                         <ComboBox ItemsSource="{Binding Portfolios}"
                                                   SelectedItem="{Binding SelectedPortfolio}"
-                                                  DisplayMemberPath="Number"
+                                                  DisplayMemberPath="Name"
                                                   Width="150"/>
                                         <Button Content="Change Security"
                                                 Command="{Binding CommandChangeSecurity}"/>

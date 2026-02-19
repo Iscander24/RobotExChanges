@@ -64,6 +64,8 @@ namespace ControllerExChanges.Connectors
                 await SetPortfolios(_quik);
             }
 
+            LastTimeUpDate = DateTime.Now;
+
             return _connectStatus;
         }
 
@@ -194,6 +196,69 @@ namespace ControllerExChanges.Connectors
         private async Task SetPortfolios(Quik quik)
         {
             List<TradesAccounts> tradesAccounts = await quik.Class.GetTradeAccounts();
+
+            List<MoneyLimitEx> moneyLimitExes = await quik.Trading.GetMoneyLimits();
+
+            List<Portfolio> portfolios = new List<Portfolio>();
+
+            foreach (var tradesAccount in tradesAccounts)
+            {
+                bool isFutures = true;
+
+                foreach (MoneyLimitEx moneyLimitEx in moneyLimitExes)
+                {
+                    if (tradesAccount.Firmid == moneyLimitEx.FirmId)
+                    {
+                        Portfolio portfolio = new Portfolio()
+                        {
+                            Name = tradesAccount.TrdaccId + "/" + moneyLimitEx.ClientCode
+                        };
+
+                        Deposit deposit = new Deposit()
+                        {
+                            Asset = moneyLimitEx.CurrCode,
+                            Many = (decimal)moneyLimitEx.OpenBal,
+                            CurrentMany = (decimal)(moneyLimitEx.OpenBal - moneyLimitEx.Locked),
+                            BlockedMoney = (decimal)moneyLimitEx.Locked
+                        };
+
+                        portfolio.Deposits.Add(deposit);
+
+                        portfolios.Add(portfolio);
+
+                        isFutures = false;
+                    }
+                }
+
+                if (isFutures)
+                {
+                    List<FuturesLimits> futuresLimits = await quik.Trading.GetFuturesClientLimits();
+
+                    FuturesLimits? limits = futuresLimits.Find(lim => lim.LimitType == 0);
+
+                    if (limits != null)
+                    {
+                        Portfolio portfolio = new Portfolio()
+                        {
+                            Name = tradesAccount.TrdaccId
+                        };
+
+                        Deposit deposit = new Deposit()
+                        {
+                            Asset = limits.CurrCode,
+                            Many = (decimal)limits.CbpLimit,
+                            CurrentMany = (decimal)limits.CbpLPlanned,
+                            BlockedMoney = (decimal)limits.CbpLUsed
+                        };
+
+                        portfolio.Deposits.Add(deposit);
+
+                        portfolios.Add(portfolio);
+                    }
+                }
+            }
+
+            _portfoliosService.SetPortfolios(portfolios);
         }
 
 
