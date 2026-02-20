@@ -109,14 +109,51 @@ namespace ControllerExChanges.Connectors
             throw new NotImplementedException();
         }
                 
-        protected override Task<List<Candle>> getCandles(Security security, TimeFrame timeFrame, int countCandles, Action<int>? LoadingInfo = null)
+        protected async override Task<List<Candle>> getCandles(Security security, TimeFrame timeFrame, int countCandles, Action<int>? LoadingInfo = null)
         {
-            throw new NotImplementedException();
+            List<Candle> candles = new List<Candle>();
+
+            if (_quik == null || ConnectStatus != ConnectStatus.Connect)
+            {
+                _logger.Error("Method{@Method}, _quik == null", nameof(getCandles));
+            }
+
+            try
+            {
+                List<QuikSharp.DataStructures.Candle> newCandles = await _quik.Candles.GetAllCandles(security.ClassCode, 
+                                                                                                     security.Name, 
+                                                                                                     GetCandleInterval(timeFrame));
+
+                if (newCandles != null &&  newCandles.Count > 0)
+                {
+                    foreach (var newCandle in newCandles)
+                    {
+                        Candle candle = new Candle(timeFrame,
+                                                    (DateTime)newCandle.Datetime,
+                                                    newCandle.Open,
+                                                    newCandle.High,
+                                                    newCandle.Low,
+                                                    newCandle.Close,
+                                                    newCandle.Volume);
+                        candles.Add(candle);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Method{@Method}, Exception{@Exception}", nameof(getCandles), ex);
+            }
+
+            return candles;
         }
 
-        protected override Task<bool> subscribeToCandles(Security security, TimeFrame timeFrame = TimeFrame.Min1)
+        
+
+        protected override async Task<bool> subscribeToCandles(Security security, TimeFrame timeFrame = TimeFrame.Min1)
         {
-            throw new NotImplementedException();
+            await Task.Delay(1);
+
+            return true;
         }
 
         protected override Task<bool> unSubscribeToCandles(Security security, TimeFrame timeFrame)
@@ -193,6 +230,39 @@ namespace ControllerExChanges.Connectors
 
         #region ================================================== private Methods =====================================================
 
+        private CandleInterval GetCandleInterval (TimeFrame timeframe)
+        {
+            switch (timeframe)
+            {
+                case TimeFrame.Min1:
+                    return QuikSharp.DataStructures.CandleInterval.M1;
+                case TimeFrame.Min2:
+                    return QuikSharp.DataStructures.CandleInterval.M2;
+                case TimeFrame.Min3:
+                    return QuikSharp.DataStructures.CandleInterval.M3;
+                case TimeFrame.Min5:
+                    return QuikSharp.DataStructures.CandleInterval.M5;
+                case TimeFrame.Min10:
+                    return QuikSharp.DataStructures.CandleInterval.M10;
+                case TimeFrame.Min15:
+                    return QuikSharp.DataStructures.CandleInterval.M15;
+                case TimeFrame.Min20:
+                    return QuikSharp.DataStructures.CandleInterval.M20;
+                case TimeFrame.Min30:
+                    return QuikSharp.DataStructures.CandleInterval.M30;
+                case TimeFrame.Hour1:
+                    return QuikSharp.DataStructures.CandleInterval.H1;
+                case TimeFrame.Hour2:
+                    return QuikSharp.DataStructures.CandleInterval.H2;
+                case TimeFrame.Hour4:
+                    return QuikSharp.DataStructures.CandleInterval.H4;
+                case TimeFrame.Day:
+                    return QuikSharp.DataStructures.CandleInterval.D1;
+            }
+
+            return QuikSharp.DataStructures.CandleInterval.M1;
+        }
+        
         private async Task SetPortfolios(Quik quik)
         {
             List<TradesAccounts> tradesAccounts = await quik.Class.GetTradeAccounts();

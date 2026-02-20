@@ -68,6 +68,8 @@ namespace BaseRobot.ViewModels
         {
             _connector.EventChangeCandle += _connector_EventChangeCandle;
 
+            _connector.CandleService.GetCandles(_security, TimeFrame.Min1);
+
             WpfPlot.AxesChanged += WpfPlot_AxesChanged;
             WpfPlot.MouseDoubleClick += WpfPlot_MouseDoubleClick;
 

@@ -433,7 +433,7 @@ namespace ControllerExChanges.Connectors
         /// </summary>
         private void DelegatesInit()
         {
-            //((Services.CandleService)CandleService).DelegatesInit(getCandles, subscribeToCandles, unSubscribeToCandles);
+            ((Services.CandleService)CandleService).DelegatesInit(getCandles, subscribeToCandles, unSubscribeToCandles);
         }
 
         protected virtual void OnNewMessage(Message message)
