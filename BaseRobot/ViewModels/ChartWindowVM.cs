@@ -64,11 +64,13 @@ namespace BaseRobot.ViewModels
         }
         
         
-        private void Init()
+        private async void Init()
         {
             _connector.EventChangeCandle += _connector_EventChangeCandle;
 
-            _connector.CandleService.GetCandles(_security, TimeFrame.Min1);
+            List <Candle> candles = await _connector.CandleService.GetCandles(_security, TimeFrame.Min1);
+
+            _connector_EventChangeCandle(_security, TimeFrame.Min1, candles);
 
             WpfPlot.AxesChanged += WpfPlot_AxesChanged;
             WpfPlot.MouseDoubleClick += WpfPlot_MouseDoubleClick;
@@ -97,7 +99,7 @@ namespace BaseRobot.ViewModels
             }
 
 
-            TimeSpan timeSpan = new TimeSpan(0, 0, (int)timeFrame);
+            TimeSpan timeSpan = new TimeSpan(0, (int)timeFrame, 0);
 
             WpfPlot.Plot.RenderLock();
 

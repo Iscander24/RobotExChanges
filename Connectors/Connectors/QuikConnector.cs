@@ -122,7 +122,7 @@ namespace ControllerExChanges.Connectors
             {
                 List<QuikSharp.DataStructures.Candle> newCandles = await _quik.Candles.GetAllCandles(security.ClassCode, 
                                                                                                      security.Name, 
-                                                                                                     GetCandleInterval(timeFrame));
+                                                                                                     GetCandleInterval(timeFrame)); // без countCandles
 
                 if (newCandles != null &&  newCandles.Count > 0)
                 {
