@@ -243,7 +243,7 @@ namespace ControllerExChanges.Connectors
         /// <returns></returns>
         private async Task<bool> AddWorkSecurity(Security security)
         {
-            //if (_workSecurities.Find(item => item == security.IsinId) != null) return true;
+            if (_workSecurities.Find(item => item == security.IsinId) != null) return true;  // почему true? непонятно, ведь если он не найдет такой бумаги, то не добавит в _workSecurities и не подпишется в _update, но вернет так будто добавил и подписался
 
             bool res = await SubscribeToSecurity(security);
 
@@ -283,22 +283,22 @@ namespace ControllerExChanges.Connectors
                     }
                 }
 
-                if (LastTimeUpDate.AddSeconds(15) < DateTime.Now
-                    && _workSecurities.Count > 0
-                    && _connectStatus == ConnectStatus.Connect)
-                {
-                    _connectStatus = ConnectStatus.Disconnect;
+                //if (LastTimeUpDate.AddSeconds(15) < DateTime.Now
+                //    && _workSecurities.Count > 0
+                //    && _connectStatus == ConnectStatus.Connect)
+                //{
+                //    _connectStatus = ConnectStatus.Disconnect;
 
-                    AutoReconnect();
+                //    AutoReconnect();
 
-                    ConnectStatusChangeEvent?.Invoke(_connectStatus);
+                //    ConnectStatusChangeEvent?.Invoke(_connectStatus);
 
-                    _logger.Information("{@MethodName}, ConnectStatusChangeEvent = {@ConnectStatusChangeEvent}", nameof(Transporter), _connectStatus);
+                //    _logger.Information("{@MethodName}, ConnectStatusChangeEvent = {@ConnectStatusChangeEvent}", nameof(Transporter), _connectStatus);
 
-                    OnNewMessage(new Message(title: "ConnectStatus",
-                                                text: _connectStatus.ToString(),
-                                                exchangeType: ExchangeType));
-                }
+                //    OnNewMessage(new Message(title: "ConnectStatus",
+                //                                text: _connectStatus.ToString(),
+                //                                exchangeType: ExchangeType));
+                //}
 
                 await Task.Delay(5);
             }

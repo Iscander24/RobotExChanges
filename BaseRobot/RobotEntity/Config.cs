@@ -93,7 +93,5 @@ namespace BaseRobot.RobotEntity
         }
 
         #endregion
-
-
     }
 }

@@ -10,6 +10,7 @@ using ControllerExChanges.Services;
 using ControlzEx.Theming;
 using Serilog;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -182,6 +183,21 @@ namespace BaseRobot.ViewModels
         }
         private ObservableCollection<LimitOrder> _limitOrders = new ObservableCollection<LimitOrder>();
 
+        /// <summary>
+        /// лимитный ордер выбранный в списке ордеров
+        /// </summary>
+        public LimitOrder? SelectedLimitOrder
+        {
+            get => _selectedLimitOrder;
+
+            set
+            {
+                _selectedLimitOrder = value;
+                OnPropertyChanged(nameof(SelectedLimitOrder));
+            }
+        }
+        private LimitOrder? _selectedLimitOrder;
+
         //public ObservableCollection<MyTrade> CompletedTrades
         //{
         //    get => _completedTrades;
@@ -283,6 +299,20 @@ namespace BaseRobot.ViewModels
             }
         }
 
+        private DelegateCommand? _commandCancelOrder;
+
+        public DelegateCommand CommandCancelOrder
+        {
+            get
+            {
+                if (_commandCancelOrder == null)
+                {
+                    _commandCancelOrder = new DelegateCommand(CancelOrder);
+                }
+                return _commandCancelOrder;
+            }
+        }
+
         #endregion
 
         #region =========================== Methods =========================================
@@ -354,6 +384,17 @@ namespace BaseRobot.ViewModels
             }
         }
 
+        private void CancelOrder(object? obj)
+        {
+            if (SelectedLimitOrder == null
+                || _connector == null
+                || _security == null) return;
+
+            ConcurrentDictionary<long, Order> orders = _connector.OrdersService.KeyMyOrders;
+
+            if (orders.TryGetValue(SelectedLimitOrder.NumberMarket, out Order? order)) _connector.CancelOrder(order);
+        }
+
 
         private void _messenger_Message(MessageType type, object message)
         {
@@ -394,7 +435,7 @@ namespace BaseRobot.ViewModels
         private void ChangeSecurity(object? obj)
         {
             _messenger.SendMessage(MessageType.ChangeSecurity, this);
-            _messenger.SendMessage(MessageType.SaveParaments);
+            _messenger.SendMessage(MessageType.SaveParaments);      // после закрытия окна выбора бумаг сохраняем параметры
 
             if (_security != null) StartSecurity(_security);
         }
@@ -405,6 +446,8 @@ namespace BaseRobot.ViewModels
             //{
             //    Server.StopThisSecurity()
             //}
+            Server.RemoveSecurityFromSubscription(_security);
+
             _security = security;
 
             position = new MyPosition(_security);
@@ -421,11 +464,11 @@ namespace BaseRobot.ViewModels
             if (_connector != null)
             {
                 _connector.PortfoliosChangeEvent -= NewServer_PortfoliosChangeEvent;
-                //_connector.SecuritiesChangeEvent -= NewServer_SecuritiesChangeEvent;
+                _connector.SecuritiesChangeEvent -= NewServer_SecuritiesChangeEvent;
                 //_connector.NeedToReconnectEvent -= NewServer_NeedToReconnectEvent;
                 _connector.NewMarketDepthEvent -= NewServer_NewMarketDepthEvent;
                 _connector.NewTradeEvent -= NewServer_NewTradeEvent;
-                //_connector.NewOrderIncomeEvent -= NewServer_NewOrderIncomeEvent;
+                _connector.NewOrderEvent -= NewServer_NewOrderIncomeEvent;
                 _connector.NewMyTradeEvent -= NewServer_NewMyTradeEvent;
                 _connector.ConnectStatusChangeEvent -= NewServer_ConnectStatusChangeEvent;
             }
@@ -433,11 +476,11 @@ namespace BaseRobot.ViewModels
             _connector = newServer;
 
             _connector.PortfoliosChangeEvent += NewServer_PortfoliosChangeEvent;
-            //_connector.SecuritiesChangeEvent += NewServer_SecuritiesChangeEvent;
+            _connector.SecuritiesChangeEvent += NewServer_SecuritiesChangeEvent;
             //_connector.NeedToReconnectEvent += NewServer_NeedToReconnectEvent;
             _connector.NewMarketDepthEvent += NewServer_NewMarketDepthEvent;
             _connector.NewTradeEvent += NewServer_NewTradeEvent;
-            //_connector.NewOrderIncomeEvent += NewServer_NewOrderIncomeEvent;
+            _connector.NewOrderEvent += NewServer_NewOrderIncomeEvent;
             _connector.NewMyTradeEvent += NewServer_NewMyTradeEvent;
             _connector.ConnectStatusChangeEvent += NewServer_ConnectStatusChangeEvent;
         }
@@ -477,21 +520,17 @@ namespace BaseRobot.ViewModels
 
         }
 
-        private void NewServer_SecuritiesChangeEvent(List<Security> securities)
+        private void NewServer_SecuritiesChangeEvent(ConcurrentDictionary<string ,Security> securities)  // также выполняется вначале после первого подключения к сервер и загузки бумаг
         {
             if (_configRobot != null
                 && !string.IsNullOrEmpty(_configRobot.SecurityName)
-                && !string.IsNullOrEmpty(_configRobot.SecurityClass))
+                && !string.IsNullOrEmpty(_configRobot.SecurityIsinId))
             {
-                foreach (Security security in securities)
+                if (securities.TryGetValue(_configRobot.SecurityIsinId, out Security? security))     // поменять на isin
                 {
-                    if (security.ClassCode == _configRobot.SecurityClass
-                        && security.Name == _configRobot.SecurityName)
-                    {
-                        _security = security;
+                    _security = security;
 
-                        StartSecurity(security);
-                    }
+                    StartSecurity(security);
                 }
             }
             #region фильтр для поиска бумаг по вводу
@@ -585,6 +624,8 @@ namespace BaseRobot.ViewModels
         }
         private void NewServer_NewOrderIncomeEvent(Order order)
         {
+            if (position == null) return;
+            
             position.AddOrderFromServer(order);                 // проверить при чистой позишн ?
             
             LimitOrder limitOrder = new LimitOrder()           // создаем копию ордера под свой класс
@@ -594,7 +635,8 @@ namespace BaseRobot.ViewModels
                 PriceOrder = order.Price,
                 Volume = order.Volume,
                 Status = order.Status,
-                Comment = order.Comment
+                Comment = order.Comment,
+                NumberMarket = order.NumberMarket,
             };
 
             _dispatcher.Invoke(() =>
@@ -616,6 +658,8 @@ namespace BaseRobot.ViewModels
         }
         private void NewServer_NewMyTradeEvent(MyTrade myTrade)
         {
+            if (position == null) return;
+            
             position.AddTrade(myTrade);
 
             OnPropertyChanged(nameof(OpenPrice));

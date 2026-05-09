@@ -1,14 +1,17 @@
 ﻿// Ignore Spelling: Paraments
 
+using ControllerExChanges.Connectors;
+using ControllerExChanges.Connectors.BinanceFutures;
+using ControllerExChanges.Connectors.Bybit;
+using ControllerExChanges.Connectors.BybitUTA;
 using ControllerExChanges.Entity;
 using ControllerExChanges.Enums;
 using ControllerExChanges.Interfaces;
-using Serilog;
-using Microsoft.Extensions.DependencyInjection;
-using ControllerExChanges.Connectors;
-using static ControllerExChanges.Interfaces.IConnector;
-using Newtonsoft.Json;
 using ControllerExChanges.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
+using Serilog;
+using static ControllerExChanges.Interfaces.IConnector;
 
 namespace ControllerExChanges.Controller
 {
@@ -31,6 +34,9 @@ namespace ControllerExChanges.Controller
             _serviceCollection.AddSingleton<ControllerLogger>();
             _serviceCollection.AddTransient<ConnectParaments>();
             _serviceCollection.AddTransient<QuikConnector>();
+            //_serviceCollection.AddTransient<BinanceFuturesConnector>();
+            _serviceCollection.AddTransient<BybitConnector>();
+            _serviceCollection.AddTransient<BybitUTA>();
             _serviceCollection.AddTransient<IPortfoliosService, PortfoliosService>();
             _serviceCollection.AddTransient<ISecuritiesService, SecuritiesService>();
             _serviceCollection.AddTransient<ICandleService, CandleService>();
@@ -393,6 +399,14 @@ namespace ControllerExChanges.Controller
                         connector = _serviceProvider.GetRequiredService<QuikConnector>();
                         break;
 
+                    //case ExchangeType.ByBit:
+                    //    connector = _serviceProvider.GetRequiredService<BybitConnector>();
+                    //    break;
+
+                    case ExchangeType.ByBit:
+                        connector = _serviceProvider.GetRequiredService<BybitUTA>();
+                        break;
+
                 }
 
                 if (connector != null)
@@ -419,7 +433,9 @@ namespace ControllerExChanges.Controller
 
                 //case ExchangeType.Binance: return true;
 
-                //case ExchangeType.BinanceFutures: return true;
+                case ExchangeType.BinanceFutures: return true;
+
+                case ExchangeType.ByBit: return true;
 
                 //case ExchangeType.LiveFutures: return true;
 

@@ -20,6 +20,8 @@ namespace BaseRobot.RobotEntity
 
         public string SecurityClass { get; set; }
 
+        public string SecurityIsinId { get; set; }
+
         public string PortfolioNumber { get; set; }
 
         public List<Order> Orders { get; set; }

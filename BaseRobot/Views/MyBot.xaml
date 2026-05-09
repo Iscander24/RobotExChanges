@@ -100,8 +100,8 @@
                             </Grid.ColumnDefinitions>
                             
                             <UniformGrid Columns="2"
-                                         Height="160"
-                                         Width="160">
+                                         Height="190"
+                                         Width="170">
                                 <TextBlock Text="Price"/>
                                 <local:DecimalTextBox Text="{Binding PriceOrder}"/>
                                 <TextBlock Text="Volume"/>
@@ -117,10 +117,13 @@
                                 <TextBlock Text="{Binding OpenPrice}"/>
                                 <TextBlock Text="PnL"/>
                                 <TextBlock Text="{Binding Accum}"/>
+                                <Button Content="CancelOrder"
+                                        Command="{Binding CommandCancelOrder}"/>
                             </UniformGrid>
 
                             <DataGrid ItemsSource="{Binding LimitOrders}"
-                                      Grid.Column="1"/>                           
+                                      Grid.Column="1"
+                                      SelectedItem="{Binding SelectedLimitOrder}"/>                           
                         </Grid>
                     </GroupBox>
                 </DataTemplate>

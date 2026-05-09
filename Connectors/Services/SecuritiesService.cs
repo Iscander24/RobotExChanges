@@ -63,6 +63,11 @@ namespace ControllerExChanges.Services
 
                 Security sec = securities[i];
 
+                if (sec.ClassCode == "BEST2")
+                {
+                    continue;
+                }
+
                 _securities.AddOrUpdate(securities[i].IsinId, sec, (key, value) => value = sec);
 
                 _secNameKeys.AddOrUpdate(securities[i].Name, securities[i].IsinId, (key, value) => value = securities[i].IsinId);
@@ -82,6 +87,13 @@ namespace ControllerExChanges.Services
         public void SetSecurity(Security security)
         {
             _securities.AddOrUpdate(security.IsinId, security, (key, value) => value = security);
+
+            //if (_secNameKeys.TryGetValue(security.Name, out var secName) && secName == security.IsinId)
+            //{
+            //    return;
+            //} 
+
+           
 
             _secNameKeys.AddOrUpdate(security.Name, security.IsinId, (key, value) => value = security.IsinId);
 

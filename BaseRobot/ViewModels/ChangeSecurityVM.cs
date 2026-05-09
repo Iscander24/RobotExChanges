@@ -179,9 +179,18 @@ namespace BaseRobot.ViewModels
 
             List<Security> controllerSecurities = server.SecuritiesService.GetSecuritiesList();
 
-            foreach (Security security in controllerSecurities)
+            foreach (Security security in controllerSecurities)     // заменить на for?
             {
                 if (security.ClassCode == codeClass) securities.Add(new SecurityVM(security));
+                
+                //if (security.ClassCode == codeClass)
+                //{
+                //    if (security.Name == "SBER")
+                //    {
+
+                //    }
+                //    securities.Add(new SecurityVM(security));
+                //}
             }
             return securities;
         }

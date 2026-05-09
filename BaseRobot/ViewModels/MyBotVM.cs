@@ -55,7 +55,7 @@ namespace BaseRobot.ViewModels
 
         private TelegramBotClient _telegramBot;
 
-        private string _token = "0531579091:AAH8ARd67VDYe0b-BoRHNycNq2eruuYhEKY";
+        private string _token = "8531579091:AAH8ARd67VDYe0b-BoRHNycNq2eruuYhEKY";
 
         private Controller _controller;
 
@@ -256,6 +256,8 @@ namespace BaseRobot.ViewModels
 
                     if (result == MessageBoxResult.Yes)
                     {
+                        robot.Server.RemoveSecurityFromSubscription(robot.Security);
+
                         Robots.Remove(robot);
                     }
                 }
@@ -485,7 +487,7 @@ namespace BaseRobot.ViewModels
 
             ThemeManager.Current.ChangeTheme(changeSecurityWindow, SelectedTheme);
 
-            changeSecurityWindow.Show();
+            changeSecurityWindow.ShowDialog();
         }
 
         private void ReadConfigs()
@@ -502,6 +504,7 @@ namespace BaseRobot.ViewModels
                     SecurityName = robot.Security?.Name ?? "",
                     SecurityClass = robot.Security?.ClassCode ?? "",
                     PortfolioNumber = robot.SelectedPortfolio?.Name ?? "",
+                    SecurityIsinId = robot.Security?.IsinId ?? "",                      //
 
                     ExchangeType = robot.Server?.ExchangeType ?? ExchangeType.None,
                 };
@@ -538,7 +541,7 @@ namespace BaseRobot.ViewModels
             if (configRobot != null)
             {
                 robot.Header = configRobot.Header;
-                robot.ConfigRobot = configRobot;
+                robot.ConfigRobot = configRobot;        // добавить метод возвращающий security из списка бумаг по isin или SecurityName + SecurityClass
             }
             else
             {

@@ -124,7 +124,8 @@ namespace BaseRobot.ViewModels
 
         private void Init()
         {
-            //IConnector? connector = _controller.GetConnector(SelectedExchangeType) ?? _controller.CreateConnector(SelectedExchangeType);
+            //IConnector? connector = _controller.GetConnector(Selected
+            //) ?? _controller.CreateConnector(SelectedExchangeType);
 
             IConnector? connector = _controller.GetConnector(SelectedExchangeType);
 

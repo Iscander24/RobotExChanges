@@ -65,6 +65,18 @@ namespace BaseRobot.RobotEntity
         }
         private string _comment;
 
+        public long NumberMarket
+        {
+            get => _numberMarket;
+
+            set
+            {
+                _numberMarket = value;
+                OnPropertyChanged(nameof(NumberMarket));
+            }
+        }
+        private long _numberMarket;
+
         public OrderStatus Status
         {
             get => _status;

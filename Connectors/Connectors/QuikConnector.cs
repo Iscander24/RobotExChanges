@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Candle = ControllerExChanges.Entity.Candle;
+using Transaction = QuikSharp.DataStructures.Transaction.Transaction;
 
 namespace ControllerExChanges.Connectors
 {
@@ -69,9 +70,33 @@ namespace ControllerExChanges.Connectors
             return _connectStatus;
         }
 
-        public Task<bool> CancelOrder(Order order)
+        public async Task<bool> CancelOrder(Order order)
         {
-            throw new NotImplementedException();
+            if (_quik == null || ConnectStatus != ConnectStatus.Connect) return false;
+
+            Transaction transaction = new();
+
+            string account = order.Account;
+            string codeClient = "";
+
+            if (order.Account.IndexOf('/') > -1)
+            {
+                string[] acc = order.Account.Split('/');
+                account = acc[0];
+                codeClient = acc[1];
+            }
+
+            transaction.ACCOUNT = account;
+            transaction.ACTION = TransactionAction.KILL_ORDER;
+            transaction.CLASSCODE = order.ClassCode;
+            transaction.SECCODE = order.SecurityName;
+            transaction.ORDER_KEY = order.NumberMarket.ToString();
+
+            var res = await _quik.Trading.SendTransaction(transaction);
+
+            if (res > 0) return true;
+
+            return false;
         }
 
         public async Task Disconnect()
@@ -101,12 +126,65 @@ namespace ControllerExChanges.Connectors
 
         public List<TimeFrame> GetTimeFrames()
         {
-            throw new NotImplementedException();
+            return new List<TimeFrame>()
+            {
+                TimeFrame.Min1,
+                TimeFrame.Min2,
+                TimeFrame.Min3,
+                TimeFrame.Min5,
+                TimeFrame.Min10,
+                TimeFrame.Min15,
+                TimeFrame.Min20,
+                TimeFrame.Min30,
+                TimeFrame.Hour1,
+                TimeFrame.Hour2,
+                TimeFrame.Hour4,
+                TimeFrame.Day
+            };
         }
 
-        public Task<bool> SendOrder(Order order)
+        public async Task<bool> SendOrder(Order order)
         {
-            throw new NotImplementedException();
+            if (_quik == null || ConnectStatus != ConnectStatus.Connect) return false;
+            
+            _ordersService.SetOrderFromUser(order);
+
+            Transaction transaction = new();
+
+            string account = order.Account;
+            string codeClient = "";
+
+            if (order.Account.IndexOf('/') > -1)
+            {
+                string[] acc = order.Account.Split('/');
+                account = acc[0];
+                codeClient = acc[1];
+            }
+
+            transaction.ACCOUNT = account;
+            transaction.ACTION = TransactionAction.NEW_ORDER;
+            transaction.CLASSCODE = order.ClassCode;
+            transaction.SECCODE = order.SecurityName;
+            transaction.PRICE = order.Price;
+            transaction.QUANTITY = (int)order.Volume;
+            transaction.OPERATION = order.Operation == Enums.Operation.Buy ? TransactionOperation.B : TransactionOperation.S;
+            transaction.CLIENT_CODE = $"{codeClient}//{order.Comment}";
+
+            try
+            {
+                var transId = await _quik.Trading.SendTransaction(transaction);
+
+                if (transId > 0) return true;
+
+                _logger.Error("Method{@Method}, Error{@Error}", nameof(SendOrder), transaction.ErrorMessage);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Method{@Method}, Exception{@Exception}", nameof(SendOrder), ex);
+            }
+
+            return false;
+
         }
                 
         protected async override Task<List<Candle>> getCandles(Security security, TimeFrame timeFrame, int countCandles, Action<int>? LoadingInfo = null)
@@ -122,7 +200,7 @@ namespace ControllerExChanges.Connectors
             {
                 List<QuikSharp.DataStructures.Candle> newCandles = await _quik.Candles.GetAllCandles(security.ClassCode, 
                                                                                                      security.Name, 
-                                                                                                     GetCandleInterval(timeFrame)); // без countCandles
+                                                                                                     GetCandleInterval(timeFrame)); 
 
                 if (newCandles != null &&  newCandles.Count > 0)
                 {
@@ -223,9 +301,26 @@ namespace ControllerExChanges.Connectors
             return res;
         }
 
-        protected override Task<bool> UnsubscribeToSecurity(Security security)
+        protected override async Task<bool> UnsubscribeToSecurity(Security security)
         {
-            throw new NotImplementedException();
+            if (_quik == null)
+            {
+                _logger.Error("Method{@Method}, _quik == null", nameof(UnsubscribeToSecurity));
+
+                OnNewMessage(new Message(title: "Unsubscribing Error",
+                                         text: "_quik == null",
+                                         exchangeType: ExchangeType.QuikConnector,
+                                         securityName: security.Name));
+
+                return false;
+            }
+
+            bool res = await _quik.OrderBook.Unsubscribe(security.ClassCode, security.Name);
+
+            _logger.Information("Method{@Method}, res{@res}", nameof(UnsubscribeToSecurity), res);
+
+            return res;
+
         }
 
         #region ================================================== private Methods =====================================================
@@ -438,6 +533,17 @@ namespace ControllerExChanges.Connectors
             order.Price = newOrder.Price;
             order.Volume = newOrder.Quantity;
             order.VolumeFilled = newOrder.Quantity - newOrder.Balance;
+
+            string comment = newOrder.Comment;
+            string account = newOrder.Account;
+
+            if (newOrder.Comment.IndexOf("//") > -1)
+            {
+                string[] split = newOrder.Comment.Split("//");
+                account = "/" + split[0];
+                comment = split[1];
+            }
+
             order.Comment = newOrder.Comment;
             order.Account = newOrder.Account;
             order.Status = SetOrderStatus(newOrder.State);

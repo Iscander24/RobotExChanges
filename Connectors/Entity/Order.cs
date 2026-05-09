@@ -99,7 +99,7 @@ namespace ControllerExChanges.Entity
         /// order status: None, Pending, Done, Patrial, Fail
         /// статус ордера: None, Pending, Done, Patrial, Fail
         /// </summary>
-        public OrderStatus Status { get; set; } = OrderStatus.None;
+        public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
 
         /// <summary>
