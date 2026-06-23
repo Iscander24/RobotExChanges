@@ -206,6 +206,8 @@ namespace ControllerExChanges.Connectors.BybitUTA
 
                     var tradesOk = await _socketClient.V5SpotApi.SubscribeToTradeUpdatesAsync(symbol: security.Name, handler: OnUpdateTrades);
 
+                    var spreadTradesOk = await _socketClient.V5SpreadApi.SubscribeToTradeUpdatesAsync(symbol: security.Name, handler: OnUpdateTrades);  // сокет для спредов
+
                     if (tradesOk.Success)
                     {
                         _logger.Information("MethodName {@MethodName}, Security {@Security} success!", nameof(SubscribeToSecurity), security);
@@ -243,7 +245,25 @@ namespace ControllerExChanges.Connectors.BybitUTA
 
                         return true;
                     }
-                    else
+                    else if (spreadTradesOk.Success)
+                    {
+                        _logger.Information("MethodName {@MethodName}, Security {@Security} success!", nameof(SubscribeToSecurity), security);
+
+                        _updateSubscriptions.AddOrUpdate(security.IsinId, spreadTradesOk.Data, (key, value) => value = spreadTradesOk.Data); // subs for spreads
+
+                        spreadTradesOk.Data.ConnectionLost += () => { Debug.WriteLine($"!!! Потеряно соединение для {security.Name} !!!"); };
+
+                        spreadTradesOk.Data.ConnectionClosed += () => { Debug.WriteLine($"!!! Соединение закрыто {security.Name} !!!"); };
+
+                        spreadTradesOk.Data.ConnectionRestored += (TimeSpan duration) => { Debug.WriteLine($"!!! Соединение для {security.Name} восстановлено через {duration} !!!"); };
+
+                        if (security.ClassCode == "FutureSpread")
+                        {
+
+                        }
+                    }
+
+                    else            // добавить логгирование ошибок всех сокетов (т.е. если попали сюда, то бумага вообще не нашлась нигде)
                     {
                         _logger.Error("Method{@Method}, Error{@Error}", nameof(SubscribeToSecurity), tradesOk.Error);
                         OnNewMessage(new Message(title: "Error",
@@ -294,9 +314,39 @@ namespace ControllerExChanges.Connectors.BybitUTA
             return true;        // если такой бумаги не будет в подписках, то все равно вернет true ! посмотреть
         }        
 
-        public Task<bool> SendOrder(Order order)
+        public async Task<bool> SendOrder(Order order)
         {
-            throw new NotImplementedException();
+            if (order == null || ConnectStatus != ConnectStatus.Connect) return false;
+
+            OrderSide orderSide = order.Operation == Operation.Buy ? OrderSide.Buy : OrderSide.Sell;
+
+            NewOrderType orderType = order.OrderType == Enums.OrderType.Limit ? NewOrderType.Limit : NewOrderType.Market;
+
+            TimeInForce? timeInForce;
+
+            decimal? orderPrice;
+
+            if (orderType == NewOrderType.Limit)
+            {
+                timeInForce = TimeInForce.GoodTillCanceled;
+                orderPrice = order.Price;
+            }
+            else
+            {
+                timeInForce = null;
+                orderPrice = null;
+            }
+
+            //if (order.ClassCode =! )
+
+            //    var clientRest = new BybitRestClient(options =>
+            //    {
+            //        options.ApiCredentials = new BybitCredentials(_apiKey, _apiSecret);
+            //    });
+            //var orderAPI = await clientRest.V5Api.Trading.Plac;
+
+
+            return true;
         }
 
         public Task<bool> CancelOrder(Order order)
@@ -332,12 +382,30 @@ namespace ControllerExChanges.Connectors.BybitUTA
 
         private void OnWalletUpdates(DataEvent<BybitBalance[]> @event)
         {
-            throw new NotImplementedException();
+            var walletData = @event.Data.ToList();
+
+            _logger.Debug("Method{@Method}, OrderList {@orderList}", nameof(OnWalletUpdates), walletData);
+
+            if (walletData != null)
+            {
+                foreach (var wallet in walletData)
+                {
+
+                }
+            }
+
+
         }
 
         private void OnPositionUpdate(DataEvent<BybitPositionUpdate[]> @event)
         {
-            throw new NotImplementedException();
+            var positionData = @event.Data.ToList();
+
+            _logger.Debug("Method{@Method}, OrderList {@orderList}", nameof(OnPositionUpdate), positionData);
+
+
+
+
         }
         private void OnUpdateTrades(DataEvent<BybitTrade[]> @event)
         {
@@ -378,15 +446,17 @@ namespace ControllerExChanges.Connectors.BybitUTA
             {
                 var spotSymbols = await client.V5Api.ExchangeData.GetSpotSymbolsAsync();
 
-                if (spotSymbols.Success)
+                var spreadSymbols = await client.V5Api.ExchangeData.GetSpreadSymbolsAsync();
+
+                if (spotSymbols.Success || spreadSymbols.Success)
                 {
-                    _logger.Debug("MethodName {@MethodName}, spotInfo.ResponseStatusCode {@spotInfo} ", nameof(GetSecurities), spotSymbols.ResponseStatusCode);
-
-                    var symbols = spotSymbols.Data.List;
-
                     List<Security> securities = new List<Security>();
 
-                    foreach (BybitSpotSymbol symbol in symbols)
+                    _logger.Debug("MethodName {@MethodName}, spotInfo.ResponseStatusCode {@spotInfo} ", nameof(GetSecurities), spotSymbols.ResponseStatusCode);
+
+                    var symbolsSpot = spotSymbols.Data.List;
+
+                    foreach (BybitSpotSymbol symbol in symbolsSpot)
                     {
                         Security security = new Security()
                         {
@@ -407,6 +477,41 @@ namespace ControllerExChanges.Connectors.BybitUTA
                         if (symbol.LotSizeFilter != null)
                         {
                             security.Lot = symbol.LotSizeFilter.MinOrderValue;
+                        }
+
+                        securities.Add(security);
+                    }
+
+                    _logger.Debug("MethodName {@MethodName}, spotInfo.ResponseStatusCode {@spotInfo} ", nameof(GetSecurities), spreadSymbols.ResponseStatusCode);
+
+                    var symbolsSpread = spreadSymbols.Data.ToList();
+
+                    foreach (BybitSpreadSymbol symbol in symbolsSpread)
+                    {
+                        Security security = new Security()
+                        {
+                            Name = symbol.Symbol,
+                            ClassCode = symbol.ContractType.ToString(),  // берем из ContractType, так как в SpreadSymbol все спреды вместе
+                            IsinId = symbol.Symbol, 
+                            FullName = symbol.Symbol,
+                            BaseContractCode = symbol.QuoteAsset,
+                            ExchangeType = _exchangeType
+                        };
+
+                        if (symbol.DeliveryTime != null)
+                        {
+                            security.ExpirationDate = (DateTime)symbol.DeliveryTime;
+                        }
+
+                        if (symbol.TickQuantity != null)
+                        {
+                            security.PriceStep = symbol.TickQuantity;
+                            security.PriceStepCost = symbol.TickQuantity;
+                        }
+
+                        if (symbol.MinQuantity != null)
+                        {
+                            security.Lot = symbol.MinQuantity;
                         }
 
                         securities.Add(security);

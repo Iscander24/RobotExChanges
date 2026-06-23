@@ -12,8 +12,8 @@
 
   <ItemGroup>
     <PackageReference Include="Binance.Net" Version="9.7.1" />
-    <PackageReference Include="Bybit.Net" Version="6.11.0" />
-    <PackageReference Include="CryptoExchange.Net" Version="11.1.1" />
+    <PackageReference Include="Bybit.Net" Version="6.14.0" />
+    <PackageReference Include="CryptoExchange.Net" Version="11.2.2" />
     <PackageReference Include="JK.BingX.Net" Version="1.0.0" />
     <PackageReference Include="JK.OKX.Net" Version="1.7.2" />
     <PackageReference Include="LiteDB" Version="5.0.19" />
@@ -38,6 +38,7 @@
 
   <ItemGroup>
     <Folder Include="Resources\" />
+    <Folder Include="QUIKSHARP\" />
   </ItemGroup>
 
   <ItemGroup>
